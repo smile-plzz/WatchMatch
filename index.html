@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>WatchMatch — Tell it what you're in the mood for</title>
 <meta name="description" content="Chat about what you're in the mood to watch — WatchMatch recommends specific, real movie and TV titles, and adapts instantly to your feedback." />
 <meta name="color-scheme" content="light dark" />
@@ -139,6 +139,7 @@
     color: var(--text);
     transform: translateY(-1px);
   }
+  .suggestion-card:active { transform: translateY(0) scale(0.98); }
 
   /* ---------- transcript ---------- */
   #messages {
@@ -205,12 +206,21 @@
     transition: transform 0.15s, box-shadow 0.15s;
   }
   .card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-  .card .poster-wrap { position: relative; width: 100%; aspect-ratio: 2 / 3; background: var(--bg-subtle); }
+  .card:active { transform: translateY(0) scale(0.985); }
+  .card .poster-wrap { position: relative; width: 100%; aspect-ratio: 2 / 3; background: var(--bg-subtle); overflow: hidden; }
+  .card .poster-wrap:has(img:not(.loaded)) {
+    background: linear-gradient(100deg, var(--bg-subtle) 30%, var(--bg-elevated) 45%, var(--bg-subtle) 60%);
+    background-size: 250% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
   .card .poster {
     width: 100%; height: 100%;
     object-fit: cover;
     display: block;
+    opacity: 0;
+    transition: opacity 0.35s ease;
   }
+  .card .poster.loaded { opacity: 1; }
   .card .poster.placeholder {
     display: flex;
     align-items: center;
@@ -271,6 +281,8 @@
     transition: border-color 0.15s, color 0.15s;
   }
   .chip:hover { color: var(--text); border-color: var(--accent-tint-strong); }
+  .chip:active { transform: scale(0.96); }
+  .action-btn:active { transform: scale(0.92); }
 
   .typing { display: flex; gap: 4px; padding: 4px 2px; }
   .typing span {
@@ -282,6 +294,7 @@
   @keyframes blink { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes shimmer { 0% { background-position: 150% 0; } 100% { background-position: -50% 0; } }
 
   .retry-btn {
     margin-top: 2px;
@@ -296,7 +309,7 @@
   }
 
   /* ---------- composer ---------- */
-  #composer-wrap { padding: 10px 16px 18px; flex-shrink: 0; }
+  #composer-wrap { padding: 10px 16px max(18px, env(safe-area-inset-bottom)); flex-shrink: 0; }
   #composer {
     display: flex;
     align-items: center;
@@ -336,37 +349,63 @@
 
   /* ---------- movie detail modal ---------- */
   dialog#movieModal {
+    position: relative;
     background: var(--bg-elevated);
     color: var(--text);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 0;
-    max-width: 640px;
+    max-width: 660px;
     width: 92vw;
     max-height: 86vh;
     box-shadow: var(--shadow);
+    overflow: hidden;
   }
   dialog#movieModal::backdrop { background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); }
-  .modal-scroll { overflow-y: auto; max-height: 86vh; }
+  .modal-scroll { overflow: hidden auto; max-height: 86vh; }
   .modal-close-btn {
-    position: sticky;
-    top: 10px;
-    left: calc(100% - 44px);
-    background: rgba(0,0,0,0.5);
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(3px);
     border: none;
     color: #fff;
     width: 32px; height: 32px;
     border-radius: 999px;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
-    z-index: 2;
+    z-index: 5;
+    transition: background 0.15s, transform 0.1s;
   }
-  .modal-body { display: flex; flex-direction: column; margin-top: -32px; }
-  .modal-poster-wrap { width: 100%; aspect-ratio: 16/9; background: var(--bg-subtle); overflow: hidden; position: relative; }
-  .modal-poster-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .modal-poster-wrap.placeholder { display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 0.85rem; }
-  .modal-content { padding: 18px 22px 24px; }
-  .modal-content h2 { margin: 0 0 6px; font-size: 1.3rem; letter-spacing: -0.01em; }
+  .modal-close-btn:hover { background: rgba(0,0,0,0.75); }
+  .modal-close-btn:active { transform: scale(0.92); }
+  .modal-body { display: flex; flex-direction: row; gap: 20px; padding: 22px; }
+  .modal-poster-wrap {
+    flex: 0 0 150px;
+    width: 150px;
+    aspect-ratio: 2 / 3;
+    border-radius: var(--radius-md);
+    background: var(--bg-subtle);
+    overflow: hidden;
+    position: relative;
+  }
+  .modal-poster-wrap:has(img:not(.loaded)) {
+    background: linear-gradient(100deg, var(--bg-subtle) 30%, var(--bg-elevated) 45%, var(--bg-subtle) 60%);
+    background-size: 250% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+  .modal-poster-wrap img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+  }
+  .modal-poster-wrap img.loaded { opacity: 1; }
+  .modal-poster-wrap.placeholder { display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 0.78rem; text-align: center; padding: 8px; }
+  .modal-content { flex: 1; min-width: 0; }
+  .modal-content h2 { margin: 0 26px 6px 0; font-size: 1.25rem; letter-spacing: -0.01em; line-height: 1.25; }
   .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
   .modal-tags span {
     font-size: 0.72rem;
@@ -411,6 +450,12 @@
   @media (max-width: 480px) {
     .suggestion-grid { grid-template-columns: 1fr; }
     #hero h2 { font-size: 1.3rem; }
+  }
+
+  @media (max-width: 560px) {
+    .modal-body { flex-direction: column; padding: 20px 18px; gap: 14px; }
+    .modal-poster-wrap { width: 108px; flex: 0 0 auto; }
+    .modal-content h2 { margin-right: 0; }
   }
 </style>
 </head>
@@ -458,11 +503,11 @@
   </div>
 </div>
 
-<dialog id="movieModal">
+<dialog id="movieModal" aria-labelledby="modalTitleHeading">
+  <button class="modal-close-btn" id="modalCloseBtn" aria-label="Close">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
   <div class="modal-scroll">
-    <button class="modal-close-btn" id="modalCloseBtn" aria-label="Close">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
     <div class="modal-body" id="modalBody">
       <div class="modal-loading">Loading details…</div>
     </div>
@@ -493,6 +538,7 @@
 
   let history = [];   // [{role, content}]
   let busy = false;
+  let lastFocused = null;
 
   function loadSet(key) {
     try { return new Set(JSON.parse(localStorage.getItem(key) || '[]')); }
@@ -663,7 +709,7 @@
     card.innerHTML = `
       <div class="poster-wrap">
         ${poster
-          ? `<img class="poster" src="${poster}" alt="${escapeHtml(displayTitle)} poster" loading="lazy" />`
+          ? `<img class="poster" src="${poster}" alt="${escapeHtml(displayTitle)} poster" loading="lazy" onload="this.classList.add('loaded')" />`
           : `<div class="poster placeholder">${escapeHtml(displayTitle)}</div>`}
         ${rating ? `<span class="rating-badge">${rating}</span>` : ''}
       </div>
@@ -691,7 +737,9 @@
     const key = titleKey(rec);
     movieModal.dataset.key = key;
     modalBody.innerHTML = '<div class="modal-loading">Loading details…</div>';
+    lastFocused = document.activeElement;
     movieModal.showModal();
+    modalCloseBtn.focus();
 
     const lookupParams = omdbDataInitial && omdbDataInitial.imdbID
       ? { i: omdbDataInitial.imdbID, plot: 'full' }
@@ -702,7 +750,7 @@
     if (!full) {
       modalBody.innerHTML = `
         <div class="modal-content">
-          <h2>${escapeHtml(rec.title)}</h2>
+          <h2 id="modalTitleHeading">${escapeHtml(rec.title)}</h2>
           <p class="modal-plot">Couldn't load details for this title right now.</p>
           <div class="modal-actions-row">
             <a class="watch-now-btn" href="${watchNowUrl(rec.title, rec.type)}" target="_blank" rel="noopener">▶ Watch Now</a>
@@ -729,10 +777,10 @@
 
     modalBody.innerHTML = `
       <div class="modal-poster-wrap ${poster ? '' : 'placeholder'}">
-        ${poster ? `<img src="${poster}" alt="${escapeHtml(full.Title)} poster" />` : escapeHtml(full.Title)}
+        ${poster ? `<img src="${poster}" alt="${escapeHtml(full.Title)} poster" onload="this.classList.add('loaded')" />` : escapeHtml(full.Title)}
       </div>
       <div class="modal-content">
-        <h2>${escapeHtml(full.Title)}</h2>
+        <h2 id="modalTitleHeading">${escapeHtml(full.Title)}</h2>
         <div class="modal-tags">${tags.map(t => `<span>${escapeHtml(t)}</span>`).join('')}</div>
         <p class="modal-plot">${escapeHtml(full.Plot && full.Plot !== 'N/A' ? full.Plot : 'No synopsis available.')}</p>
         <dl class="modal-meta-grid">
@@ -756,6 +804,9 @@
   modalCloseBtn.addEventListener('click', () => movieModal.close());
   movieModal.addEventListener('click', (e) => {
     if (e.target === movieModal) movieModal.close();
+  });
+  movieModal.addEventListener('close', () => {
+    if (lastFocused && typeof lastFocused.focus === 'function') lastFocused.focus();
   });
 
   async function addAssistantMessage(reply, recommendations) {
