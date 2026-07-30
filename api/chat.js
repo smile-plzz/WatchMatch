@@ -3,11 +3,11 @@
 // MISTRAL_API_KEY environment variable set in the Vercel project (Project Settings ->
 // Environment Variables), NOT committed to the repo.
 
-const MAX_MESSAGES = 20;       // total turns accepted from the client
+const MAX_MESSAGES = 24;       // total turns accepted from the client
 const MAX_MESSAGE_LEN = 500;   // chars per message
-const MAX_HISTORY_SENT = 10;   // most recent messages actually sent to Mistral (cost control)
-const MAX_EXCLUDE = 200;       // cap on titles-to-avoid list (watched + not interested)
-const MAX_EXCLUDE_LEN = 100;   // chars per excluded title
+const MAX_HISTORY_SENT = 12;   // most recent messages actually sent to Mistral (cost control)
+const MAX_LIST = 200;          // cap on exclude/liked title lists
+const MAX_LIST_ITEM_LEN = 100; // chars per title in those lists
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -39,15 +39,24 @@ module.exports = async function handler(req, res) {
 
   const recent = cleaned.slice(-MAX_HISTORY_SENT);
 
-  const excludeTitles = Array.isArray(req.body?.exclude)
-    ? req.body.exclude
-        .filter(t => typeof t === 'string' && t.trim())
-        .map(t => t.trim().slice(0, MAX_EXCLUDE_LEN))
-        .slice(0, MAX_EXCLUDE)
-    : [];
+  function sanitizeList(field) {
+    return Array.isArray(req.body?.[field])
+      ? req.body[field]
+          .filter(t => typeof t === 'string' && t.trim())
+          .map(t => t.trim().slice(0, MAX_LIST_ITEM_LEN))
+          .slice(0, MAX_LIST)
+      : [];
+  }
+
+  const excludeTitles = sanitizeList('exclude'); // watched + not-interested + thumbs-down
+  const likedTitles = sanitizeList('liked');      // favorited + thumbs-up
 
   const excludeClause = excludeTitles.length
-    ? `\n\nThe user has already watched or dismissed these titles — never recommend any of them again, even if they'd otherwise fit perfectly: ${excludeTitles.join(', ')}.`
+    ? `\n\nHARD EXCLUDE — the user has watched, dismissed, or thumbs-downed these; never recommend any of them again under any circumstances, even if they'd otherwise fit perfectly: ${excludeTitles.join(', ')}.`
+    : '';
+
+  const likedClause = likedTitles.length
+    ? `\n\nTASTE SIGNAL — the user has favorited or thumbs-upped these titles in the past; use them (tone, pace, genre, era, complexity) to calibrate what "fits" means for this person, without just recommending obvious sequels/clones: ${likedTitles.join(', ')}.`
     : '';
 
   const controller = new AbortController();
@@ -63,19 +72,21 @@ module.exports = async function handler(req, res) {
       signal: controller.signal,
       body: JSON.stringify({
         model: 'mistral-small-latest',
-        temperature: 0.3,
+        temperature: 0.25,
         response_format: { type: 'json_object' },
         messages: [
           {
             role: 'system',
-            content: `You are ReelChat, a precise movie and TV recommendation assistant. Your only goal is to figure out exactly what the user wants to watch and why, then recommend titles that actually fit — never generic, never padded to hit a number.
+            content: `You are WatchMatch, a precise movie and TV recommendation assistant. Your only goal is to figure out exactly what the user wants to watch and why, then recommend titles that actually fit — never generic, never padded to hit a number.
 
 Ask at most one short clarifying question if it would meaningfully sharpen the recommendation (mood, genre, runtime/commitment level, movie vs series, something familiar vs something new, what they watched recently and liked/disliked, or what streaming services they have). Don't stall with more than one round of questions — as soon as you have enough signal, recommend.
 
-When you recommend, give 3 to 6 SPECIFIC real movie or TV show titles that best fit the whole conversation so far — not descriptions, not sub-genres, not "something like X" categories. Precision matters more than quantity: if only 2 titles genuinely fit well, recommend 2, not 6. Briefly say in your reply WHY each pick fits what the user asked for, in a natural sentence or two — not a bare list.${excludeClause}
+FEEDBACK IS THE STRONGEST SIGNAL YOU GET. If the user reacts to a previous recommendation — in plain text ("already seen that", "too slow", "not funny enough", "loved the first one", "more like #2") or via an explicit "[feedback]" tagged message — treat it as more important than anything else in the conversation. Do not repeat the same kind of miss twice: if they say something was too slow, don't hand back something else slow-paced next turn. Briefly acknowledge what you adjusted because of their feedback, in one short clause, not a paragraph.
 
-Reply with strict JSON only, no other text: {"reply": "<your natural conversational response, shown to the user as-is>", "recommendations": [{"title": "<exact title, correctly spelled>", "year": "<release year if known, else empty string>", "type": "movie" or "series"}, ...]}
-Use an empty recommendations array only while still asking your one clarifying question. Each recommendation's title must be a real, exact, correctly spelled movie/show title (not a description or paraphrase) — include the year whenever you're confident of it, since common-word titles (e.g. "Up", "It", "Her") are ambiguous without one.`,
+When you recommend, give 3 to 6 SPECIFIC real movie or TV show titles that best fit the whole conversation so far — not descriptions, not sub-genres, not "something like X" categories. Precision matters more than quantity: if only 2 titles genuinely fit well, recommend 2, not 6.${excludeClause}${likedClause}
+
+Reply with strict JSON only, no other text: {"reply": "<your natural conversational response, shown to the user as-is — keep it to 2-3 sentences>", "recommendations": [{"title": "<exact title, correctly spelled>", "year": "<release year if known, else empty string>", "type": "movie" or "series", "reason": "<one short clause, <=100 chars, on why THIS title specifically fits what the user asked for or the feedback they gave>"}, ...]}
+Use an empty recommendations array only while still asking your one clarifying question. Each recommendation's title must be a real, exact, correctly spelled movie/show title (not a description or paraphrase) — include the year whenever you're confident of it, since common-word titles (e.g. "Up", "It", "Her") are ambiguous without one. Never include a title from the HARD EXCLUDE list.`,
           },
           ...recent,
         ],
@@ -100,6 +111,8 @@ Use an empty recommendations array only while still asking your one clarifying q
       return;
     }
 
+    const excludeLower = new Set(excludeTitles.map(t => t.toLowerCase()));
+
     const recommendations = Array.isArray(parsed?.recommendations)
       ? parsed.recommendations
           .filter(r => r && typeof r.title === 'string' && r.title.trim())
@@ -107,7 +120,10 @@ Use an empty recommendations array only while still asking your one clarifying q
             title: r.title.trim().slice(0, 100),
             year: typeof r.year === 'string' || typeof r.year === 'number' ? String(r.year).trim().slice(0, 9) : '',
             type: r.type === 'series' ? 'series' : r.type === 'movie' ? 'movie' : '',
+            reason: typeof r.reason === 'string' ? r.reason.trim().slice(0, 140) : '',
           }))
+          // belt-and-suspenders: drop anything matching the hard-exclude list even if the model slipped
+          .filter(r => !excludeLower.has(r.title.toLowerCase()) && !excludeLower.has(`${r.title} (${r.year})`.toLowerCase()))
           .slice(0, 6)
       : [];
 

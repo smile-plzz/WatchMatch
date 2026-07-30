@@ -1,13 +1,15 @@
-# 🎬 ReelChat
+# 🎬 WatchMatch
 
 A chat-first movie and TV recommendation assistant. No mood grid, no genre browsing —
-just describe what you're in the mood for and ReelChat asks at most one clarifying
-question before recommending specific, real titles that actually fit.
+just describe what you're in the mood for and WatchMatch asks at most one clarifying
+question before recommending specific, real titles that actually fit. React to what
+it suggests — 👍, 👎, or just tell it in plain text — and it adapts immediately.
 
 Built as a focused spin-off of the "Chat with AI" feature from
-[MoodReel](https://github.com/smile-plzz/MovieRecommendationBasedOnMood), with one
-addition: ReelChat remembers what you've marked watched or not-interested (locally,
-in your browser) and tells the AI to never recommend those titles again.
+[MoodReel](https://github.com/smile-plzz/MovieRecommendationBasedOnMood), with two
+additions: a feedback loop where reactions to recommendations directly steer the
+next answer, and a persistent taste profile (liked/watched/not-interested) kept
+locally in your browser.
 
 ---
 
@@ -17,13 +19,19 @@ in your browser) and tells the AI to never recommend those titles again.
   *X* but lighter," how much time you have, what streaming services you have, etc.
 - [Mistral AI](https://mistral.ai/) (via a serverless function that keeps the API
   key server-side) asks at most one short clarifying question, then recommends
-  3–6 *specific* real titles — never vague genre buckets.
+  3–6 *specific* real titles — never vague genre buckets — each with a one-line
+  reason tailored to what you asked for.
 - Each recommended title is looked up on [OMDB](http://www.omdbapi.com/) and shown
-  as a real card (poster, year, rating) inline in the chat.
-- Every card has quick actions: ♥ favorite, ✓ mark watched, ✕ not interested.
-  Watched and not-interested titles are sent back to the AI on every future
-  message so it never repeats a recommendation you've already rejected or seen.
-- Everything (favorites/watched/not-interested/your OMDB key) lives in browser
+  as a real card (poster, rating) inline in the chat.
+- Every card has three quick actions: 👍 **like** (a taste signal — future
+  recommendations lean into what made this pick fit you), ✓ **watched** (never
+  suggested again), and 👎 **not for me** — which both excludes the title for
+  good *and* immediately tells the AI in the chat, so its very next reply visibly
+  adjusts instead of repeating the same kind of miss.
+- Typed feedback works the same way: say "too slow," "already seen that," or
+  "loved the first one, more like that" and the system prompt treats it as the
+  strongest signal in the conversation.
+- Everything (liked/watched/not-interested/your OMDB key) lives in browser
   `localStorage` — no account, no backend database.
 
 ---
@@ -42,16 +50,16 @@ in your browser) and tells the AI to never recommend those titles again.
 ### 1. Clone
 
 ```bash
-git clone https://github.com/smile-plzz/ReelChat.git
-cd ReelChat
+git clone https://github.com/smile-plzz/WatchMatch.git
+cd WatchMatch
 ```
 
-### 2. Get an OMDB key (free)
+### 2. OMDB key
 
 Get a free key from [omdbapi.com/apikey.aspx](https://www.omdbapi.com/apikey.aspx),
-then paste it in via the 🔑 icon once the app is running — it's saved only in
-your browser. Without a key, chat still works but recommendation cards show a
-plain title instead of a poster/rating.
+then paste it in via the key icon (top right) once the app is running — it's
+saved only in your browser. Without a key, chat still works but recommendation
+cards show a plain title instead of a poster/rating.
 
 ### 3. Run locally with Vercel (needed for the AI chat function)
 
@@ -89,7 +97,7 @@ Redeploy (or push) after adding it.
 ## 📁 Folder structure
 
 ```
-ReelChat/
+WatchMatch/
 ├── index.html       # Chat UI, OMDB lookups, localStorage lists
 ├── api/
 │   └── chat.js       # Serverless proxy to Mistral AI — conversational recommender
@@ -104,10 +112,10 @@ ReelChat/
 
 | Key | Purpose |
 |---|---|
-| `reelchat_favorites` | Favorited titles |
-| `reelchat_watched` | Titles marked watched |
-| `reelchat_not_interested` | Titles hidden from future recommendations |
-| `reelchat_omdb_key` | Your OMDB API key, if set |
+| `watchmatch_liked` | Titles you've thumbs-upped — used as a taste signal |
+| `watchmatch_watched` | Titles marked watched — excluded from future recommendations |
+| `watchmatch_not_interested` | Titles thumbs-downed — excluded from future recommendations |
+| `watchmatch_omdb_key` | Your OMDB API key, if set |
 
 ---
 
