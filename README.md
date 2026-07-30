@@ -3,16 +3,20 @@
 A chat-first movie and TV recommendation assistant. No mood grid, no genre browsing —
 just describe what you're in the mood for and WatchMatch asks at most one clarifying
 question before recommending specific, real titles that actually fit. React to what
-it suggests — 👍, 👎, or just tell it in plain text — and it adapts immediately.
-Click any title for a full detail view with a **Watch Now** button that jumps
-straight into a search on [streamv2](https://github.com/smile-plzz/streamv2).
+it suggests — 👍, 👎, or just tell it in plain text — and it adapts immediately, without
+ever repeating a pick you've already seen or rejected. Click any title for a full detail
+view with a **Watch Now** button that jumps straight into a search on
+[streamv2](https://github.com/smile-plzz/streamv2).
 
 Built as a focused spin-off of the "Chat with AI" feature from
-[MoodReel](https://github.com/smile-plzz/MovieRecommendationBasedOnMood), with
-three additions: a feedback loop where reactions to recommendations directly
-steer the next answer, a persistent taste profile (liked/watched/not-interested)
-kept locally in your browser, and a one-click hop into streamv2 to actually
-watch a pick.
+[MoodReel](https://github.com/smile-plzz/MovieRecommendationBasedOnMood), with a
+few additions: a feedback loop where reactions to recommendations directly steer
+the next answer, a persistent taste profile kept locally in your browser, fuzzy
+matching so an AI-recommended title still resolves to a real poster even with a
+slightly off year or spelling, and a one-click hop into streamv2 to actually watch
+a pick.
+
+Live, deployed, and in daily use — not a demo.
 
 ---
 
@@ -23,10 +27,15 @@ watch a pick.
 - [Mistral AI](https://mistral.ai/) (via a serverless function that keeps the API
   key server-side) asks at most one short clarifying question, then recommends
   3–6 *specific* real titles — never vague genre buckets — each with a one-line
-  reason tailored to what you asked for.
-- Each recommended title is looked up on [OMDB](http://www.omdbapi.com/) (via a
-  serverless proxy — the API key lives only on the server, never in the browser)
-  and shown as a real card (poster, rating) inline in the chat.
+  reason tailored to what you asked for. It never repeats a title already
+  suggested earlier in the same conversation, and never invents a title it
+  isn't confident actually exists.
+- Every recommended title is resolved against [OMDB](http://www.omdbapi.com/)
+  (via a serverless proxy — the API key lives only on the server) with a fuzzy
+  fallback chain: exact title+year, then title alone, then a fuzzy search — so
+  a slightly-off year or spelling still resolves to a real poster and rating
+  instead of a bare placeholder. All of a batch's lookups run in parallel with
+  a staggered reveal, rather than one at a time.
 - Click a card to open a detail modal — full plot, cast, director, IMDb/Rotten
   Tomatoes/Metacritic ratings, awards — plus a **Watch Now** button that opens
   [streamv2](https://smile-plzz.github.io/streamv2/) with that title pre-searched
@@ -41,6 +50,17 @@ watch a pick.
   strongest signal in the conversation.
 - Your liked/watched/not-interested lists live in browser `localStorage` — no
   account, no backend database.
+
+### Interaction details
+
+- **Mobile-first touch ergonomics**: tap targets sized to Apple's HIG minimum,
+  no stuck-hover-after-tap states, 16px input text (stops iOS Safari's
+  auto-zoom-on-focus), and safe-area padding around notches/home indicators.
+- **Smart scrolling**: the transcript only auto-scrolls to new content if you
+  were already near the bottom — if you've scrolled up to reread something, a
+  new reply shows a "↓ New message" pill instead of yanking your position.
+- **Composer**: an auto-growing textarea — Enter sends, Shift+Enter for a
+  newline — instead of a single-line field.
 
 ---
 
@@ -128,6 +148,10 @@ WatchMatch/
 | `watchmatch_watched` | Titles marked watched — excluded from future recommendations |
 | `watchmatch_not_interested` | Titles thumbs-downed — excluded from future recommendations |
 
+The "already suggested this conversation" memory that stops the AI repeating
+itself mid-chat is session-only (in memory, not `localStorage`) and resets
+whenever you start a new chat.
+
 ---
 
 ## 🐞 Known limitations
@@ -138,10 +162,14 @@ WatchMatch/
   poster/rating), but Watch Now still works since it just searches by title.
 - OMDB's free tier caps at 1,000 requests/day per key.
 - Recommended titles are only as good as Mistral's knowledge — very recent
-  releases may occasionally be missed or misdated.
+  releases may occasionally be missed or misdated; unresolved titles are
+  labeled "unverified title" rather than shown as a normal confirmed result.
 - streamv2 has no direct "open and autoplay" link for a specific title, so
   Watch Now lands on its search results for that title rather than an
   already-playing page.
+- `api/chat.js` has no per-visitor rate limiting — fine for personal/low-traffic
+  use, but a widely-shared link could run up the Mistral bill faster than
+  expected.
 
 ---
 
