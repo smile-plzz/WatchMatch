@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
 <title>WatchMatch — Tell it what you're in the mood for</title>
 <meta name="description" content="Chat about what you're in the mood to watch — WatchMatch recommends specific, real movie and TV titles, and adapts instantly to your feedback." />
 <meta name="color-scheme" content="light dark" />
@@ -56,12 +56,18 @@
     -webkit-font-smoothing: antialiased;
   }
   #app {
+    position: relative;
     display: flex;
     flex-direction: column;
     height: 100vh;
     height: 100dvh;
     max-width: 760px;
     margin: 0 auto;
+  }
+  #app.busy .chip,
+  #app.busy .suggestion-card {
+    opacity: 0.5;
+    pointer-events: none;
   }
 
   /* ---------- header ---------- */
@@ -81,12 +87,16 @@
     border: none;
     color: var(--text-dim);
     border-radius: 999px;
-    width: 34px; height: 34px;
+    width: 44px; height: 44px;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
+    touch-action: manipulation;
     transition: background 0.15s, color 0.15s;
   }
-  button.icon-btn:hover { color: var(--text); background: var(--bg-subtle); }
+  @media (hover: hover) and (pointer: fine) {
+    button.icon-btn:hover { color: var(--text); background: var(--bg-subtle); }
+  }
+  button.icon-btn:active { color: var(--text); background: var(--bg-subtle); }
   button.icon-btn svg { width: 17px; height: 17px; }
 
   /* ---------- hero / empty state ---------- */
@@ -128,18 +138,22 @@
     background: var(--bg-elevated);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    padding: 12px 14px;
+    padding: 14px;
+    min-height: 44px;
     font-size: 0.83rem;
     color: var(--text-dim);
     cursor: pointer;
+    touch-action: manipulation;
     transition: border-color 0.15s, transform 0.15s, color 0.15s;
   }
-  .suggestion-card:hover {
-    border-color: var(--accent-tint-strong);
-    color: var(--text);
-    transform: translateY(-1px);
+  @media (hover: hover) and (pointer: fine) {
+    .suggestion-card:hover {
+      border-color: var(--accent-tint-strong);
+      color: var(--text);
+      transform: translateY(-1px);
+    }
   }
-  .suggestion-card:active { transform: translateY(0) scale(0.98); }
+  .suggestion-card:active { transform: translateY(0) scale(0.98); border-color: var(--accent-tint-strong); color: var(--text); }
 
   /* ---------- transcript ---------- */
   #messages {
@@ -203,10 +217,13 @@
     display: flex;
     flex-direction: column;
     cursor: pointer;
+    touch-action: manipulation;
     transition: transform 0.15s, box-shadow 0.15s;
     animation: rise 0.35s ease backwards;
   }
-  .card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  @media (hover: hover) and (pointer: fine) {
+    .card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  }
   .card:active { transform: translateY(0) scale(0.985); }
   .card .poster-wrap { position: relative; width: 100%; aspect-ratio: 2 / 3; background: var(--bg-subtle); overflow: hidden; }
   .card .poster-wrap:has(img:not(.loaded)) {
@@ -260,29 +277,39 @@
     border: 1px solid transparent;
     color: var(--text-dim);
     border-radius: var(--radius-sm);
-    padding: 5px 0;
+    padding: 10px 0;
+    min-height: 40px;
     font-size: 0.85rem;
     cursor: pointer;
+    touch-action: manipulation;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .action-btn:hover { color: var(--text); }
+  @media (hover: hover) and (pointer: fine) {
+    .action-btn:hover { color: var(--text); }
+  }
   .action-btn[data-action="like"].active { color: var(--accent); background: var(--accent-tint); border-color: var(--accent-tint-strong); }
   .action-btn[data-action="watched"].active { color: var(--ok); background: var(--ok-tint); }
   .action-btn[data-action="dislike"].active { color: var(--danger); background: var(--danger-tint); }
 
   .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 13px; }
   .chip {
+    display: inline-flex;
+    align-items: center;
     background: var(--bg-elevated);
     border: 1px solid var(--border);
     color: var(--text-dim);
     border-radius: 999px;
-    padding: 6px 13px;
+    padding: 9px 15px;
+    min-height: 36px;
     font-size: 0.8rem;
     cursor: pointer;
+    touch-action: manipulation;
     transition: border-color 0.15s, color 0.15s;
   }
-  .chip:hover { color: var(--text); border-color: var(--accent-tint-strong); }
-  .chip:active { transform: scale(0.96); }
+  @media (hover: hover) and (pointer: fine) {
+    .chip:hover { color: var(--text); border-color: var(--accent-tint-strong); }
+  }
+  .chip:active { transform: scale(0.96); color: var(--text); border-color: var(--accent-tint-strong); }
   .action-btn:active { transform: scale(0.92); }
 
   .typing { display: flex; gap: 4px; padding: 4px 2px; }
@@ -303,43 +330,54 @@
     border: 1px solid var(--danger);
     color: var(--danger);
     border-radius: var(--radius-sm);
-    padding: 5px 13px;
+    padding: 10px 16px;
+    min-height: 44px;
     font-size: 0.8rem;
     cursor: pointer;
+    touch-action: manipulation;
     align-self: flex-start;
   }
 
   /* ---------- composer ---------- */
-  #composer-wrap { padding: 10px 16px max(18px, env(safe-area-inset-bottom)); flex-shrink: 0; }
+  #composer-wrap { padding: 10px 16px max(18px, env(safe-area-inset-bottom)); flex-shrink: 0; transition: opacity 0.15s; }
+  #app.busy #composer-wrap { opacity: 0.85; }
   #composer {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     gap: 6px;
     background: var(--bg-elevated);
     border: 1px solid var(--border);
-    border-radius: 999px;
+    border-radius: 24px;
     padding: 6px 6px 6px 18px;
     box-shadow: var(--shadow);
     transition: border-color 0.15s;
   }
   #composer:focus-within { border-color: var(--accent-tint-strong); }
-  #composer input {
+  #composer textarea {
     flex: 1;
     background: transparent;
     border: none;
     color: var(--text);
-    font-size: 0.94rem;
+    font: inherit;
+    font-size: 1rem; /* >=16px prevents iOS Safari auto-zoom on focus */
+    line-height: 1.4;
     outline: none;
-    padding: 8px 0;
+    padding: 9px 0;
+    margin: 0;
+    resize: none;
+    max-height: 120px;
+    overflow-y: auto;
+    touch-action: manipulation;
   }
-  #composer input::placeholder { color: var(--text-faint); }
+  #composer textarea::placeholder { color: var(--text-faint); }
   #composer button.send {
     background: var(--accent);
     border: none;
     color: var(--accent-text);
-    width: 38px; height: 38px;
+    width: 44px; height: 44px;
     border-radius: 999px;
     cursor: pointer;
+    touch-action: manipulation;
     display: flex; align-items: center; justify-content: center;
     flex-shrink: 0;
     transition: opacity 0.15s, transform 0.1s;
@@ -347,6 +385,30 @@
   #composer button.send:active { transform: scale(0.93); }
   #composer button.send:disabled { opacity: 0.4; cursor: not-allowed; }
   #composer button.send svg { width: 16px; height: 16px; }
+
+  /* ---------- scroll-to-bottom affordance ---------- */
+  .scroll-bottom-btn {
+    position: absolute;
+    left: 50%;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 0.8rem;
+    padding: 8px 15px;
+    min-height: 36px;
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    touch-action: manipulation;
+    z-index: 4;
+    animation: fadeIn 0.15s ease;
+  }
+  .scroll-bottom-btn.hidden { display: none; }
 
   /* ---------- movie detail modal ---------- */
   dialog#movieModal {
@@ -366,21 +428,24 @@
   .modal-scroll { overflow: hidden auto; max-height: 86vh; }
   .modal-close-btn {
     position: absolute;
-    top: 12px;
-    right: 12px;
+    top: 10px;
+    right: 10px;
     background: rgba(0,0,0,0.55);
     backdrop-filter: blur(3px);
     border: none;
     color: #fff;
-    width: 32px; height: 32px;
+    width: 44px; height: 44px;
     border-radius: 999px;
     display: flex; align-items: center; justify-content: center;
     cursor: pointer;
+    touch-action: manipulation;
     z-index: 5;
     transition: background 0.15s, transform 0.1s;
   }
-  .modal-close-btn:hover { background: rgba(0,0,0,0.75); }
-  .modal-close-btn:active { transform: scale(0.92); }
+  @media (hover: hover) and (pointer: fine) {
+    .modal-close-btn:hover { background: rgba(0,0,0,0.75); }
+  }
+  .modal-close-btn:active { transform: scale(0.92); background: rgba(0,0,0,0.75); }
   .modal-body { display: flex; flex-direction: row; gap: 20px; padding: 22px; }
   .modal-poster-wrap {
     flex: 0 0 150px;
@@ -406,7 +471,7 @@
   .modal-poster-wrap img.loaded { opacity: 1; }
   .modal-poster-wrap.placeholder { display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 0.78rem; text-align: center; padding: 8px; }
   .modal-content { flex: 1; min-width: 0; }
-  .modal-content h2 { margin: 0 26px 6px 0; font-size: 1.25rem; letter-spacing: -0.01em; line-height: 1.25; }
+  .modal-content h2 { margin: 0 44px 6px 0; font-size: 1.25rem; letter-spacing: -0.01em; line-height: 1.25; }
   .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
   .modal-tags span {
     font-size: 0.72rem;
@@ -427,15 +492,20 @@
     color: var(--accent-text);
     font-weight: 650;
     font-size: 0.88rem;
-    padding: 10px 18px;
+    padding: 12px 18px;
+    min-height: 44px;
     border-radius: 999px;
     text-decoration: none;
+    touch-action: manipulation;
     transition: opacity 0.15s;
   }
-  .watch-now-btn:hover { opacity: 0.88; }
+  @media (hover: hover) and (pointer: fine) {
+    .watch-now-btn:hover { opacity: 0.88; }
+  }
+  .watch-now-btn:active { opacity: 0.88; }
   .watch-now-btn svg { width: 14px; height: 14px; }
   .modal-quick-actions { display: flex; gap: 6px; }
-  .modal-quick-actions .action-btn { flex: none; width: 38px; padding: 8px 0; font-size: 0.95rem; }
+  .modal-quick-actions .action-btn { flex: none; width: 44px; min-height: 44px; padding: 10px 0; font-size: 0.95rem; }
   .modal-loading { padding: 40px 22px; text-align: center; color: var(--text-dim); font-size: 0.9rem; }
 
   /* ---------- OMDB unconfigured banner ---------- */
@@ -494,9 +564,11 @@
 
   <div id="messages" class="hidden"></div>
 
+  <button type="button" id="scrollBottomBtn" class="scroll-bottom-btn hidden">↓ New message</button>
+
   <div id="composer-wrap">
     <form id="composer" autocomplete="off">
-      <input id="input" type="text" placeholder="What are you in the mood to watch?" maxlength="500" />
+      <textarea id="input" rows="1" placeholder="What are you in the mood to watch?" maxlength="500"></textarea>
       <button type="submit" class="send" id="sendBtn" title="Send">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
       </button>
@@ -527,6 +599,7 @@
 
   const STREAM_BASE = 'https://smile-plzz.github.io/streamv2/';
 
+  const appEl = document.getElementById('app');
   const heroEl = document.getElementById('hero');
   const messagesEl = document.getElementById('messages');
   const form = document.getElementById('composer');
@@ -536,11 +609,13 @@
   const movieModal = document.getElementById('movieModal');
   const modalBody = document.getElementById('modalBody');
   const modalCloseBtn = document.getElementById('modalCloseBtn');
+  const scrollBottomBtn = document.getElementById('scrollBottomBtn');
 
   let history = [];   // [{role, content}]
   let busy = false;
   let lastFocused = null;
   let sessionShown = new Set(); // titles already recommended this conversation (resets on New Chat)
+  let stickToBottom = true; // whether the transcript should auto-scroll on new content
 
   function loadSet(key) {
     try { return new Set(JSON.parse(localStorage.getItem(key) || '[]')); }
@@ -572,9 +647,38 @@
     messagesEl.classList.remove('hidden');
   }
 
-  function scrollToBottom() {
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+  // "Stick to bottom" chat scrolling: only auto-scroll to the newest content
+  // if the user was already near the bottom. If they've scrolled up to reread
+  // something, new messages/cards shouldn't yank them back down — instead we
+  // surface a small "New message" affordance they can tap.
+  const STICK_THRESHOLD = 96; // px of slack from the true bottom that still counts as "at bottom"
+
+  function isNearBottom() {
+    return messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < STICK_THRESHOLD;
   }
+
+  messagesEl.addEventListener('scroll', () => {
+    stickToBottom = isNearBottom();
+    if (stickToBottom) scrollBottomBtn.classList.add('hidden');
+  });
+
+  // Pass force=true for content the user directly caused (their own message,
+  // the typing indicator that follows it) so it always scrolls into view.
+  // Everything else respects stickToBottom and shows the affordance instead.
+  function scrollToBottom(force) {
+    if (force || stickToBottom) {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      stickToBottom = true;
+      scrollBottomBtn.classList.add('hidden');
+    } else {
+      scrollBottomBtn.classList.remove('hidden');
+    }
+  }
+
+  scrollBottomBtn.addEventListener('click', () => {
+    scrollToBottom(true);
+    input.focus();
+  });
 
   function addSystemNote(text) {
     const div = document.createElement('div');
@@ -591,7 +695,7 @@
     div.innerHTML = `<div class="bubble"></div>`;
     div.querySelector('.bubble').textContent = text;
     messagesEl.appendChild(div);
-    scrollToBottom();
+    scrollToBottom(true);
   }
 
   function addTypingIndicator() {
@@ -600,7 +704,7 @@
     div.id = 'typingIndicator';
     div.innerHTML = `<div class="bubble typing"><span></span><span></span><span></span></div>`;
     messagesEl.appendChild(div);
-    scrollToBottom();
+    scrollToBottom(true);
     return div;
   }
 
@@ -923,6 +1027,7 @@
     if (busy || !text.trim()) return;
     busy = true;
     sendBtn.disabled = true;
+    appEl.classList.add('busy');
     showTranscript();
 
     addUserMessage(text, !!opts.auto);
@@ -955,14 +1060,35 @@
     } finally {
       busy = false;
       sendBtn.disabled = false;
+      appEl.classList.remove('busy');
       input.focus();
     }
   }
 
+  // Auto-growing textarea: expands with content up to a capped max height
+  // (then scrolls internally), and resets back to a single line after send.
+  const INPUT_MAX_HEIGHT = 120;
+  function autoGrowInput() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, INPUT_MAX_HEIGHT) + 'px';
+  }
+  input.addEventListener('input', autoGrowInput);
+
+  // Enter sends, Shift+Enter inserts a newline (standard chat-composer behavior).
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (typeof form.requestSubmit === 'function') form.requestSubmit();
+      else form.dispatchEvent(new Event('submit', { cancelable: true }));
+    }
+  });
+
   form.addEventListener('submit', (e) => {
     e.preventDefault();
+    if (busy) return; // don't discard what the user typed while a request is in flight
     const text = input.value;
     input.value = '';
+    autoGrowInput();
     sendMessage(text);
   });
 
@@ -978,6 +1104,9 @@
     heroEl.classList.remove('gone');
     heroEl.style.display = '';
     input.value = '';
+    autoGrowInput();
+    stickToBottom = true;
+    scrollBottomBtn.classList.add('hidden');
   });
 
   input.focus();
