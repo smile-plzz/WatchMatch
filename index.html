@@ -201,6 +201,7 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    cursor: pointer;
     transition: transform 0.15s, box-shadow 0.15s;
   }
   .card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
@@ -242,7 +243,7 @@
     font-style: italic;
   }
   .card .actions { display: flex; gap: 4px; padding: 0 8px 9px; margin-top: auto; }
-  .card .actions button {
+  .action-btn {
     flex: 1;
     background: var(--bg-subtle);
     border: 1px solid transparent;
@@ -253,10 +254,10 @@
     cursor: pointer;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .card .actions button:hover { color: var(--text); }
-  .card .actions button[data-action="like"].active { color: var(--accent); background: var(--accent-tint); border-color: var(--accent-tint-strong); }
-  .card .actions button[data-action="watched"].active { color: var(--ok); background: var(--ok-tint); }
-  .card .actions button[data-action="dislike"].active { color: var(--danger); background: var(--danger-tint); }
+  .action-btn:hover { color: var(--text); }
+  .action-btn[data-action="like"].active { color: var(--accent); background: var(--accent-tint); border-color: var(--accent-tint-strong); }
+  .action-btn[data-action="watched"].active { color: var(--ok); background: var(--ok-tint); }
+  .action-btn[data-action="dislike"].active { color: var(--danger); background: var(--danger-tint); }
 
   .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 13px; }
   .chip {
@@ -333,30 +334,76 @@
   #composer button.send:disabled { opacity: 0.4; cursor: not-allowed; }
   #composer button.send svg { width: 16px; height: 16px; }
 
-  /* ---------- key dialog ---------- */
-  dialog#keyDialog {
+  /* ---------- movie detail modal ---------- */
+  dialog#movieModal {
     background: var(--bg-elevated);
     color: var(--text);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 22px;
-    max-width: 420px;
-    width: 90%;
+    padding: 0;
+    max-width: 640px;
+    width: 92vw;
+    max-height: 86vh;
     box-shadow: var(--shadow);
   }
-  dialog#keyDialog::backdrop { background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
-  dialog#keyDialog h2 { margin: 0 0 8px; font-size: 1rem; }
-  dialog#keyDialog p { color: var(--text-dim); font-size: 0.85rem; line-height: 1.5; margin: 0 0 14px; }
-  dialog#keyDialog a { color: var(--accent); }
-  dialog#keyDialog input {
-    width: 100%; padding: 10px 12px; margin: 0 0 14px;
-    background: var(--bg-subtle); border: 1px solid var(--border); color: var(--text);
-    border-radius: var(--radius-sm); font-size: 0.9rem;
+  dialog#movieModal::backdrop { background: rgba(0,0,0,0.55); backdrop-filter: blur(3px); }
+  .modal-scroll { overflow-y: auto; max-height: 86vh; }
+  .modal-close-btn {
+    position: sticky;
+    top: 10px;
+    left: calc(100% - 44px);
+    background: rgba(0,0,0,0.5);
+    border: none;
+    color: #fff;
+    width: 32px; height: 32px;
+    border-radius: 999px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    z-index: 2;
   }
-  dialog#keyDialog .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
-  dialog#keyDialog button { border-radius: var(--radius-sm); padding: 7px 15px; cursor: pointer; font-size: 0.85rem; border: none; }
-  dialog#keyDialog button.primary { background: var(--accent); color: var(--accent-text); font-weight: 600; }
-  dialog#keyDialog button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+  .modal-body { display: flex; flex-direction: column; margin-top: -32px; }
+  .modal-poster-wrap { width: 100%; aspect-ratio: 16/9; background: var(--bg-subtle); overflow: hidden; position: relative; }
+  .modal-poster-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .modal-poster-wrap.placeholder { display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 0.85rem; }
+  .modal-content { padding: 18px 22px 24px; }
+  .modal-content h2 { margin: 0 0 6px; font-size: 1.3rem; letter-spacing: -0.01em; }
+  .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .modal-tags span {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 3px 10px;
+  }
+  .modal-plot { font-size: 0.9rem; line-height: 1.55; color: var(--text-dim); margin: 0 0 14px; }
+  .modal-meta-grid { display: grid; grid-template-columns: auto 1fr; gap: 5px 12px; font-size: 0.82rem; margin-bottom: 16px; }
+  .modal-meta-grid dt { color: var(--text-faint); }
+  .modal-meta-grid dd { margin: 0; color: var(--text); }
+  .modal-actions-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .watch-now-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: var(--accent);
+    color: var(--accent-text);
+    font-weight: 650;
+    font-size: 0.88rem;
+    padding: 10px 18px;
+    border-radius: 999px;
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+  .watch-now-btn:hover { opacity: 0.88; }
+  .watch-now-btn svg { width: 14px; height: 14px; }
+  .modal-quick-actions { display: flex; gap: 6px; }
+  .modal-quick-actions .action-btn { flex: none; width: 38px; padding: 8px 0; font-size: 0.95rem; }
+  .modal-loading { padding: 40px 22px; text-align: center; color: var(--text-dim); font-size: 0.9rem; }
+
+  /* ---------- OMDB unconfigured banner ---------- */
+  .omdb-hint {
+    margin-top: 8px;
+    color: var(--text-faint);
+    font-size: 0.75rem;
+  }
 
   ::-webkit-scrollbar { width: 8px; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
@@ -378,9 +425,6 @@
       <span class="brand-name">WatchMatch</span>
     </div>
     <div class="header-actions">
-      <button class="icon-btn" id="keyBtn" title="Set your OMDB API key">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.5 12.5L20 3M17 6l3 3M14 9l2 2"/></svg>
-      </button>
       <button class="icon-btn" id="newChatBtn" title="Start a new conversation">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
       </button>
@@ -414,15 +458,14 @@
   </div>
 </div>
 
-<dialog id="keyDialog">
-  <h2>OMDB API key</h2>
-  <p>WatchMatch looks up posters and ratings for recommended titles via the free
-     <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener">OMDB API</a>.
-     Your key is stored only in this browser (localStorage) — never sent anywhere but OMDB.</p>
-  <input id="keyInput" type="text" placeholder="Paste your OMDB API key" />
-  <div class="dialog-actions">
-    <button type="button" class="secondary" id="keyCancel">Cancel</button>
-    <button type="button" class="primary" id="keySave">Save</button>
+<dialog id="movieModal">
+  <div class="modal-scroll">
+    <button class="modal-close-btn" id="modalCloseBtn" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <div class="modal-body" id="modalBody">
+      <div class="modal-loading">Loading details…</div>
+    </div>
   </div>
 </dialog>
 
@@ -431,11 +474,12 @@
   'use strict';
 
   const LS = {
-    OMDB_KEY: 'watchmatch_omdb_key',
     WATCHED: 'watchmatch_watched',
     NOT_INTERESTED: 'watchmatch_not_interested',
     LIKED: 'watchmatch_liked',
   };
+
+  const STREAM_BASE = 'https://smile-plzz.github.io/streamv2/';
 
   const heroEl = document.getElementById('hero');
   const messagesEl = document.getElementById('messages');
@@ -443,9 +487,9 @@
   const input = document.getElementById('input');
   const sendBtn = document.getElementById('sendBtn');
   const newChatBtn = document.getElementById('newChatBtn');
-  const keyBtn = document.getElementById('keyBtn');
-  const keyDialog = document.getElementById('keyDialog');
-  const keyInput = document.getElementById('keyInput');
+  const movieModal = document.getElementById('movieModal');
+  const modalBody = document.getElementById('modalBody');
+  const modalCloseBtn = document.getElementById('modalCloseBtn');
 
   let history = [];   // [{role, content}]
   let busy = false;
@@ -456,9 +500,6 @@
   }
   function saveSet(key, set) {
     try { localStorage.setItem(key, JSON.stringify([...set])); } catch {}
-  }
-  function omdbKey() {
-    try { return localStorage.getItem(LS.OMDB_KEY) || ''; } catch { return ''; }
   }
 
   let watched = loadSet(LS.WATCHED);
@@ -475,10 +516,8 @@
   // ---------- rendering ----------
 
   function showTranscript() {
-    if (!heroEl.classList.contains('gone')) {
-      heroEl.classList.add('gone');
-      heroEl.style.display = 'none';
-    }
+    heroEl.classList.add('gone');
+    heroEl.style.display = 'none';
     messagesEl.classList.remove('hidden');
   }
 
@@ -523,14 +562,10 @@
     return rec.year ? `${rec.title} (${rec.year})` : rec.title;
   }
 
-  async function fetchOmdb(rec) {
-    const key = omdbKey();
-    if (!key) return null;
-    const params = new URLSearchParams({ apikey: key, t: rec.title });
-    if (rec.year) params.set('y', rec.year);
-    if (rec.type) params.set('type', rec.type);
+  async function fetchOmdb(params) {
     try {
-      const res = await fetch(`https://www.omdbapi.com/?${params.toString()}`);
+      const qs = new URLSearchParams(params);
+      const res = await fetch(`/api/omdb?${qs.toString()}`);
       const data = await res.json();
       if (data && data.Response === 'True') return data;
     } catch {}
@@ -543,13 +578,82 @@
     return div.innerHTML;
   }
 
+  function cssKey(key) {
+    return (window.CSS && CSS.escape) ? CSS.escape(key) : key.replace(/["\\]/g, '\\$&');
+  }
+
+  function applyStateToContainer(container, key) {
+    container.querySelectorAll('[data-action]').forEach(btn => {
+      const action = btn.dataset.action;
+      const active = (action === 'like' && liked.has(key))
+        || (action === 'watched' && watched.has(key))
+        || (action === 'dislike' && notInterested.has(key));
+      btn.classList.toggle('active', active);
+    });
+  }
+
+  // Refresh like/watched/dislike button states everywhere this title appears
+  // (multiple cards across turns, plus the modal if it's open on this title).
+  // Relies on the container already being attached to the document — use
+  // applyStateToContainer directly for a freshly-built, not-yet-attached node.
+  function syncActionState(key) {
+    document.querySelectorAll(`[data-key="${cssKey(key)}"]`).forEach(container => {
+      applyStateToContainer(container, key);
+    });
+  }
+
+  function buildActionsHtml(key) {
+    const isLiked = liked.has(key);
+    const isWatched = watched.has(key);
+    const isDisliked = notInterested.has(key);
+    return `
+      <button type="button" class="action-btn" data-action="like" title="I like this ${isLiked ? '(active)' : ''}">👍</button>
+      <button type="button" class="action-btn" data-action="watched" title="Already watched ${isWatched ? '(active)' : ''}">✓</button>
+      <button type="button" class="action-btn" data-action="dislike" title="Not for me ${isDisliked ? '(active)' : ''}">👎</button>
+    `.trim();
+  }
+
+  function wireActions(container, key, displayTitle, displayYear) {
+    applyStateToContainer(container, key);
+    container.querySelector('[data-action="like"]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      liked.add(key);
+      notInterested.delete(key);
+      saveSet(LS.LIKED, liked);
+      saveSet(LS.NOT_INTERESTED, notInterested);
+      syncActionState(key);
+    });
+    container.querySelector('[data-action="watched"]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (watched.has(key)) watched.delete(key); else watched.add(key);
+      saveSet(LS.WATCHED, watched);
+      syncActionState(key);
+    });
+    container.querySelector('[data-action="dislike"]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      notInterested.add(key);
+      liked.delete(key);
+      saveSet(LS.NOT_INTERESTED, notInterested);
+      saveSet(LS.LIKED, liked);
+      syncActionState(key);
+      if (movieModal.open) movieModal.close();
+      if (!busy) {
+        sendMessage(`Not interested in "${displayTitle}"${displayYear ? ` (${displayYear})` : ''} — please try something else instead.`, { auto: true });
+      }
+    });
+  }
+
+  function watchNowUrl(displayTitle, type) {
+    const params = new URLSearchParams({ q: displayTitle });
+    if (type === 'movie' || type === 'series') params.set('type', type);
+    return `${STREAM_BASE}#/search?${params.toString()}`;
+  }
+
   function buildCard(rec, omdbData) {
     const card = document.createElement('div');
     card.className = 'card';
     const key = titleKey(rec);
-    const isLiked = liked.has(key);
-    const isWatched = watched.has(key);
-    const isDisliked = notInterested.has(key);
+    card.dataset.key = key;
 
     const poster = omdbData && omdbData.Poster && omdbData.Poster !== 'N/A' ? omdbData.Poster : null;
     const displayTitle = omdbData ? omdbData.Title : rec.title;
@@ -568,43 +672,91 @@
         <div class="meta">${escapeHtml(displayYear || '')}${rec.type ? ' · ' + escapeHtml(rec.type) : ''}</div>
       </div>
       ${rec.reason ? `<div class="reason">${escapeHtml(rec.reason)}</div>` : ''}
-      <div class="actions">
-        <button data-action="like" class="${isLiked ? 'active' : ''}" title="I like this">👍</button>
-        <button data-action="watched" class="${isWatched ? 'active' : ''}" title="Already watched">✓</button>
-        <button data-action="dislike" class="${isDisliked ? 'active' : ''}" title="Not for me">👎</button>
-      </div>
+      <div class="actions">${buildActionsHtml(key)}</div>
     `;
 
-    card.querySelector('[data-action="like"]').addEventListener('click', (e) => {
-      liked.add(key);
-      notInterested.delete(key);
-      saveSet(LS.LIKED, liked);
-      saveSet(LS.NOT_INTERESTED, notInterested);
-      e.currentTarget.classList.add('active');
-      card.querySelector('[data-action="dislike"]').classList.remove('active');
-    });
+    wireActions(card.querySelector('.actions'), key, displayTitle, displayYear);
 
-    card.querySelector('[data-action="watched"]').addEventListener('click', (e) => {
-      const btn = e.currentTarget;
-      if (watched.has(key)) { watched.delete(key); btn.classList.remove('active'); }
-      else { watched.add(key); btn.classList.add('active'); }
-      saveSet(LS.WATCHED, watched);
-    });
-
-    card.querySelector('[data-action="dislike"]').addEventListener('click', (e) => {
-      notInterested.add(key);
-      liked.delete(key);
-      saveSet(LS.NOT_INTERESTED, notInterested);
-      saveSet(LS.LIKED, liked);
-      e.currentTarget.classList.add('active');
-      card.querySelector('[data-action="like"]').classList.remove('active');
-      if (!busy) {
-        sendMessage(`Not interested in "${displayTitle}"${displayYear ? ` (${displayYear})` : ''} — please try something else instead.`, { auto: true });
-      }
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.actions')) return;
+      openMovieModal(rec, omdbData);
     });
 
     return card;
   }
+
+  // ---------- movie detail modal ----------
+
+  async function openMovieModal(rec, omdbDataInitial) {
+    const key = titleKey(rec);
+    movieModal.dataset.key = key;
+    modalBody.innerHTML = '<div class="modal-loading">Loading details…</div>';
+    movieModal.showModal();
+
+    const lookupParams = omdbDataInitial && omdbDataInitial.imdbID
+      ? { i: omdbDataInitial.imdbID, plot: 'full' }
+      : { t: rec.title, y: rec.year || '', type: rec.type || '', plot: 'full' };
+
+    const full = (await fetchOmdb(lookupParams)) || omdbDataInitial;
+
+    if (!full) {
+      modalBody.innerHTML = `
+        <div class="modal-content">
+          <h2>${escapeHtml(rec.title)}</h2>
+          <p class="modal-plot">Couldn't load details for this title right now.</p>
+          <div class="modal-actions-row">
+            <a class="watch-now-btn" href="${watchNowUrl(rec.title, rec.type)}" target="_blank" rel="noopener">▶ Watch Now</a>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const poster = full.Poster && full.Poster !== 'N/A' ? full.Poster : null;
+    const tags = [full.Year, full.Rated, full.Runtime, full.Genre].filter(v => v && v !== 'N/A');
+    const ratingsRow = (full.Ratings || []).map(r => `${r.Source}: ${r.Value}`);
+    if (full.imdbRating && full.imdbRating !== 'N/A' && !ratingsRow.some(r => r.startsWith('Internet Movie Database'))) {
+      ratingsRow.unshift(`IMDb: ${full.imdbRating}/10`);
+    }
+
+    const metaRows = [
+      ['Director', full.Director],
+      ['Cast', full.Actors],
+      ['Ratings', ratingsRow.join(' · ')],
+      ['Awards', full.Awards],
+      ['Box office', full.BoxOffice],
+    ].filter(([, v]) => v && v !== 'N/A');
+
+    modalBody.innerHTML = `
+      <div class="modal-poster-wrap ${poster ? '' : 'placeholder'}">
+        ${poster ? `<img src="${poster}" alt="${escapeHtml(full.Title)} poster" />` : escapeHtml(full.Title)}
+      </div>
+      <div class="modal-content">
+        <h2>${escapeHtml(full.Title)}</h2>
+        <div class="modal-tags">${tags.map(t => `<span>${escapeHtml(t)}</span>`).join('')}</div>
+        <p class="modal-plot">${escapeHtml(full.Plot && full.Plot !== 'N/A' ? full.Plot : 'No synopsis available.')}</p>
+        <dl class="modal-meta-grid">
+          ${metaRows.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`).join('')}
+        </dl>
+        <div class="modal-actions-row">
+          <a class="watch-now-btn" href="${watchNowUrl(full.Title, rec.type || (full.Type === 'series' ? 'series' : 'movie'))}" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            Watch Now
+          </a>
+          <div class="modal-quick-actions">${buildActionsHtml(key)}</div>
+        </div>
+      </div>
+    `;
+
+    const modalActions = modalBody.querySelector('.modal-quick-actions');
+    modalActions.dataset.key = key;
+    wireActions(modalActions, key, full.Title, full.Year);
+  }
+
+  modalCloseBtn.addEventListener('click', () => movieModal.close());
+  movieModal.addEventListener('click', (e) => {
+    if (e.target === movieModal) movieModal.close();
+  });
 
   async function addAssistantMessage(reply, recommendations) {
     const div = document.createElement('div');
@@ -621,19 +773,18 @@
       cardsWrap.className = 'cards';
       div.appendChild(cardsWrap);
 
+      let anyOmdb = false;
       for (const rec of recommendations) {
-        const omdbData = await fetchOmdb(rec);
+        const omdbData = await fetchOmdb({ t: rec.title, y: rec.year || '', type: rec.type || '' });
+        if (omdbData) anyOmdb = true;
         cardsWrap.appendChild(buildCard(rec, omdbData));
         scrollToBottom();
       }
 
-      if (!omdbKey()) {
+      if (!anyOmdb) {
         const hint = document.createElement('div');
-        hint.className = 'meta';
-        hint.style.marginTop = '8px';
-        hint.style.color = 'var(--text-faint)';
-        hint.style.fontSize = '0.75rem';
-        hint.textContent = 'Set an OMDB API key (key icon, top right) to see posters and ratings for these picks.';
+        hint.className = 'omdb-hint';
+        hint.textContent = 'Movie posters and details are unavailable right now — you can still click a title to search it on the streaming site.';
         div.appendChild(hint);
       }
 
@@ -725,18 +876,6 @@
     heroEl.classList.remove('gone');
     heroEl.style.display = '';
     input.value = '';
-  });
-
-  // ---------- OMDB key dialog ----------
-
-  keyBtn.addEventListener('click', () => {
-    keyInput.value = omdbKey();
-    keyDialog.showModal();
-  });
-  document.getElementById('keyCancel').addEventListener('click', () => keyDialog.close());
-  document.getElementById('keySave').addEventListener('click', () => {
-    try { localStorage.setItem(LS.OMDB_KEY, keyInput.value.trim()); } catch {}
-    keyDialog.close();
   });
 
   input.focus();
