@@ -204,6 +204,7 @@
     flex-direction: column;
     cursor: pointer;
     transition: transform 0.15s, box-shadow 0.15s;
+    animation: rise 0.35s ease backwards;
   }
   .card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
   .card:active { transform: translateY(0) scale(0.985); }
@@ -539,6 +540,7 @@
   let history = [];   // [{role, content}]
   let busy = false;
   let lastFocused = null;
+  let sessionShown = new Set(); // titles already recommended this conversation (resets on New Chat)
 
   function loadSet(key) {
     try { return new Set(JSON.parse(localStorage.getItem(key) || '[]')); }
@@ -557,6 +559,9 @@
   }
   function likedList() {
     return [...liked].slice(0, 200);
+  }
+  function shownList() {
+    return [...sessionShown].slice(0, 200);
   }
 
   // ---------- rendering ----------
@@ -608,14 +613,45 @@
     return rec.year ? `${rec.title} (${rec.year})` : rec.title;
   }
 
-  async function fetchOmdb(params) {
+  async function fetchOmdbRaw(params) {
     try {
       const qs = new URLSearchParams(params);
       const res = await fetch(`/api/omdb?${qs.toString()}`);
-      const data = await res.json();
-      if (data && data.Response === 'True') return data;
-    } catch {}
-    return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  async function fetchOmdb(params) {
+    const data = await fetchOmdbRaw(params);
+    return (data && data.Response === 'True' && !data.Search) ? data : null;
+  }
+
+  // Best-effort resolution for an AI-recommended title: exact title+year match,
+  // then title alone (the model's stated year is occasionally off by one), then
+  // a fuzzy OMDB search as a last resort — so a near-miss still resolves to a
+  // real poster/card instead of a bare, unverifiable placeholder.
+  async function resolveOmdb(rec, extra) {
+    extra = extra || {};
+    const type = rec.type || '';
+
+    let data = await fetchOmdb({ t: rec.title, y: rec.year || '', type, ...extra });
+    if (data) return data;
+
+    if (rec.year) {
+      data = await fetchOmdb({ t: rec.title, type, ...extra });
+      if (data) return data;
+    }
+
+    const searchData = await fetchOmdbRaw({ s: rec.title, type });
+    const candidates = (searchData && searchData.Response === 'True' && Array.isArray(searchData.Search))
+      ? searchData.Search
+      : [];
+    if (!candidates.length) return null;
+
+    const best = (rec.year && candidates.find(c => c.Year && c.Year.startsWith(String(rec.year)))) || candidates[0];
+    return fetchOmdb({ i: best.imdbID, ...extra });
   }
 
   function escapeHtml(str) {
@@ -715,7 +751,7 @@
       </div>
       <div class="info">
         <div class="title">${escapeHtml(displayTitle)}</div>
-        <div class="meta">${escapeHtml(displayYear || '')}${rec.type ? ' · ' + escapeHtml(rec.type) : ''}</div>
+        <div class="meta">${escapeHtml(displayYear || '')}${rec.type ? ' · ' + escapeHtml(rec.type) : ''}${omdbData ? '' : ' · unverified title'}</div>
       </div>
       ${rec.reason ? `<div class="reason">${escapeHtml(rec.reason)}</div>` : ''}
       <div class="actions">${buildActionsHtml(key)}</div>
@@ -741,11 +777,9 @@
     movieModal.showModal();
     modalCloseBtn.focus();
 
-    const lookupParams = omdbDataInitial && omdbDataInitial.imdbID
-      ? { i: omdbDataInitial.imdbID, plot: 'full' }
-      : { t: rec.title, y: rec.year || '', type: rec.type || '', plot: 'full' };
-
-    const full = (await fetchOmdb(lookupParams)) || omdbDataInitial;
+    const full = omdbDataInitial && omdbDataInitial.imdbID
+      ? (await fetchOmdb({ i: omdbDataInitial.imdbID, plot: 'full' })) || omdbDataInitial
+      : (await resolveOmdb(rec, { plot: 'full' })) || omdbDataInitial;
 
     if (!full) {
       modalBody.innerHTML = `
@@ -820,17 +854,33 @@
     scrollToBottom();
 
     if (recommendations && recommendations.length) {
+      const loadingNote = document.createElement('div');
+      loadingNote.className = 'omdb-hint';
+      loadingNote.textContent = 'Looking up posters and ratings…';
+      div.appendChild(loadingNote);
+      scrollToBottom();
+
+      // Resolve all titles in parallel (rather than one network round-trip at a
+      // time) — noticeably faster for a 6-title batch, with a resolveOmdb()
+      // fallback chain per title so a slightly-off year or spelling still
+      // finds a real match instead of coming back empty.
+      const omdbResults = await Promise.all(recommendations.map(rec => resolveOmdb(rec)));
+      loadingNote.remove();
+
       const cardsWrap = document.createElement('div');
       cardsWrap.className = 'cards';
       div.appendChild(cardsWrap);
 
       let anyOmdb = false;
-      for (const rec of recommendations) {
-        const omdbData = await fetchOmdb({ t: rec.title, y: rec.year || '', type: rec.type || '' });
+      recommendations.forEach((rec, i) => {
+        const omdbData = omdbResults[i];
         if (omdbData) anyOmdb = true;
-        cardsWrap.appendChild(buildCard(rec, omdbData));
-        scrollToBottom();
-      }
+        sessionShown.add(titleKey(rec));
+        const card = buildCard(rec, omdbData);
+        card.style.animationDelay = `${i * 55}ms`;
+        cardsWrap.appendChild(card);
+      });
+      scrollToBottom();
 
       if (!anyOmdb) {
         const hint = document.createElement('div');
@@ -883,7 +933,7 @@
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: history, exclude: excludeList(), liked: likedList() }),
+        body: JSON.stringify({ messages: history, exclude: excludeList(), liked: likedList(), shown: shownList() }),
       });
       const data = await res.json();
       removeTypingIndicator();
@@ -922,6 +972,7 @@
 
   newChatBtn.addEventListener('click', () => {
     history = [];
+    sessionShown = new Set();
     messagesEl.innerHTML = '';
     messagesEl.classList.add('hidden');
     heroEl.classList.remove('gone');

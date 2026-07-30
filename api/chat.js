@@ -50,6 +50,7 @@ module.exports = async function handler(req, res) {
 
   const excludeTitles = sanitizeList('exclude'); // watched + not-interested + thumbs-down
   const likedTitles = sanitizeList('liked');      // favorited + thumbs-up
+  const shownTitles = sanitizeList('shown');      // already suggested earlier this session
 
   const excludeClause = excludeTitles.length
     ? `\n\nHARD EXCLUDE — the user has watched, dismissed, or thumbs-downed these; never recommend any of them again under any circumstances, even if they'd otherwise fit perfectly: ${excludeTitles.join(', ')}.`
@@ -57,6 +58,10 @@ module.exports = async function handler(req, res) {
 
   const likedClause = likedTitles.length
     ? `\n\nTASTE SIGNAL — the user has favorited or thumbs-upped these titles in the past; use them (tone, pace, genre, era, complexity) to calibrate what "fits" means for this person, without just recommending obvious sequels/clones: ${likedTitles.join(', ')}.`
+    : '';
+
+  const shownClause = shownTitles.length
+    ? `\n\nALREADY SUGGESTED THIS SESSION — don't repeat any of these unless the user explicitly asks for one of them by name again: ${shownTitles.join(', ')}.`
     : '';
 
   const controller = new AbortController();
@@ -83,7 +88,7 @@ Ask at most one short clarifying question if it would meaningfully sharpen the r
 
 FEEDBACK IS THE STRONGEST SIGNAL YOU GET. If the user reacts to a previous recommendation — in plain text ("already seen that", "too slow", "not funny enough", "loved the first one", "more like #2") or via an explicit "[feedback]" tagged message — treat it as more important than anything else in the conversation. Do not repeat the same kind of miss twice: if they say something was too slow, don't hand back something else slow-paced next turn. Briefly acknowledge what you adjusted because of their feedback, in one short clause, not a paragraph.
 
-When you recommend, give 3 to 6 SPECIFIC real movie or TV show titles that best fit the whole conversation so far — not descriptions, not sub-genres, not "something like X" categories. Precision matters more than quantity: if only 2 titles genuinely fit well, recommend 2, not 6.${excludeClause}${likedClause}
+When you recommend, give 3 to 6 SPECIFIC real movie or TV show titles that best fit the whole conversation so far — not descriptions, not sub-genres, not "something like X" categories. Precision matters more than quantity: if only 2 titles genuinely fit well, recommend 2, not 6. Never invent or guess at a title — only recommend real titles you are confident actually exist; if you're not sure of the exact year, leave year empty rather than stating a wrong one. Within one batch, don't pad the list with near-duplicates of each other (e.g. two sequels from the same franchise, or the same director/premise twice) unless the user specifically asked for more like one particular pick — each recommendation should earn its place for a distinct reason.${excludeClause}${likedClause}${shownClause}
 
 Reply with strict JSON only, no other text: {"reply": "<your natural conversational response, shown to the user as-is — keep it to 2-3 sentences>", "recommendations": [{"title": "<exact title, correctly spelled>", "year": "<release year if known, else empty string>", "type": "movie" or "series", "reason": "<one short clause, <=100 chars, on why THIS title specifically fits what the user asked for or the feedback they gave>"}, ...]}
 Use an empty recommendations array only while still asking your one clarifying question. Each recommendation's title must be a real, exact, correctly spelled movie/show title (not a description or paraphrase) — include the year whenever you're confident of it, since common-word titles (e.g. "Up", "It", "Her") are ambiguous without one. Never include a title from the HARD EXCLUDE list.`,
