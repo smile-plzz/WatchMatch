@@ -732,10 +732,33 @@
     return (data && data.Response === 'True' && !data.Search) ? data : null;
   }
 
+  function normalizeTitle(str) {
+    return String(str || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  // Scores an OMDb search candidate against the AI's recommended {title, year}:
+  // exact-title matches always outrank inexact ones (a wrong movie that happens
+  // to rank first in OMDb's own relevance order must never beat a real title
+  // match), and among exact-title matches the closest year wins.
+  function scoreCandidate(rec, candidate) {
+    const titleMatches = normalizeTitle(candidate.Title) === normalizeTitle(rec.title);
+    let yearScore = 0;
+    if (rec.year && candidate.Year) {
+      const wantYear = parseInt(rec.year, 10);
+      const gotYear = parseInt(candidate.Year, 10); // series years like "2016–2019" parse to the start year
+      if (!Number.isNaN(wantYear) && !Number.isNaN(gotYear)) {
+        yearScore = Math.max(0, 10 - Math.abs(wantYear - gotYear));
+      }
+    } else if (!rec.year) {
+      yearScore = 5; // no year to compare against — don't penalize
+    }
+    return (titleMatches ? 1000 : 0) + yearScore;
+  }
+
   // Best-effort resolution for an AI-recommended title: exact title+year match,
-  // then title alone (the model's stated year is occasionally off by one), then
-  // a fuzzy OMDB search as a last resort — so a near-miss still resolves to a
-  // real poster/card instead of a bare, unverifiable placeholder.
+  // then a scored OMDB search — so a near-miss in the model's stated year or
+  // spelling still resolves to the right title instead of quietly swapping in
+  // a different movie/show that happens to share (or rank near) the same name.
   async function resolveOmdb(rec, extra) {
     extra = extra || {};
     const type = rec.type || '';
@@ -743,18 +766,20 @@
     let data = await fetchOmdb({ t: rec.title, y: rec.year || '', type, ...extra });
     if (data) return data;
 
-    if (rec.year) {
-      data = await fetchOmdb({ t: rec.title, type, ...extra });
-      if (data) return data;
-    }
-
     const searchData = await fetchOmdbRaw({ s: rec.title, type });
     const candidates = (searchData && searchData.Response === 'True' && Array.isArray(searchData.Search))
       ? searchData.Search
       : [];
     if (!candidates.length) return null;
 
-    const best = (rec.year && candidates.find(c => c.Year && c.Year.startsWith(String(rec.year)))) || candidates[0];
+    const best = candidates.reduce((top, c) => (scoreCandidate(rec, c) > scoreCandidate(rec, top) ? c : top));
+
+    // Only accept a fuzzy match when the title itself actually matches — a
+    // year-only near-miss is fine, but a title mismatch means OMDb couldn't
+    // find what the AI meant, and showing an unrelated title is worse than a
+    // placeholder card.
+    if (normalizeTitle(best.Title) !== normalizeTitle(rec.title)) return null;
+
     return fetchOmdb({ i: best.imdbID, ...extra });
   }
 
