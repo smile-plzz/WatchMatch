@@ -39,9 +39,12 @@ Three files carry all the logic:
     `localStorage`-backed title sets (see Data & storage below). `shownList`
     (already-suggested-this-session) is in-memory only, not persisted.
   - `fetchOmdb`/`resolveOmdb` — resolves an AI-recommended `{title, year}`
-    against `api/omdb.js` with a fallback chain: exact title+year → title
-    alone → fuzzy search (`s=`) picking the closest match. Batch lookups run
-    in parallel with a staggered reveal, not sequentially.
+    against `api/omdb.js`: exact title+year match first, else a fuzzy search
+    (`s=`) scored by `scoreCandidate` (exact-title match always outranks
+    closer year, closest year wins among exact-title matches); a fuzzy result
+    is only accepted if its title actually matches — a title mismatch returns
+    null (placeholder card) rather than showing an unrelated movie/show.
+    Batch lookups run in parallel with a staggered reveal, not sequentially.
   - `buildCard`/`openMovieModal` — render a recommendation as a card and as
     the full detail modal; both wire up the same 👍/✓/👎 action buttons via
     `wireActions`/`buildActionsHtml`, keyed by `titleKey(rec)`.
