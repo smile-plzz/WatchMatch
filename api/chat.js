@@ -38,6 +38,7 @@ module.exports = async function handler(req, res) {
   }
 
   const recent = cleaned.slice(-MAX_HISTORY_SENT);
+  const dropped = cleaned.slice(0, -MAX_HISTORY_SENT);
 
   function sanitizeList(field) {
     return Array.isArray(req.body?.[field])
@@ -64,10 +65,24 @@ module.exports = async function handler(req, res) {
     ? `\n\nALREADY SUGGESTED THIS SESSION — don't repeat any of these unless the user explicitly asks for one of them by name again: ${shownTitles.join(', ')}.`
     : '';
 
+  // Older turns get trimmed from the actual messages sent to the model (cost
+  // control), but dropping them outright loses early mood/context signals in
+  // long conversations. Carry a short digest of the dropped user turns
+  // forward instead of the full text.
+  const earlierClause = dropped.length
+    ? `\n\nEARLIER IN THIS CONVERSATION (context only, don't quote or repeat this back): ${dropped
+        .filter(m => m.role === 'user')
+        .map(m => m.content)
+        .join(' | ')
+        .slice(0, 600)}`
+    : '';
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000);
 
-  try {
+  // A single transient hit (rate limit or upstream 5xx) shouldn't surface as a
+  // dead end requiring a manual retry click — retry once after a short delay.
+  async function callMistral(body, attempt = 0) {
     const mistralRes = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -75,7 +90,17 @@ module.exports = async function handler(req, res) {
         'Authorization': `Bearer ${apiKey}`,
       },
       signal: controller.signal,
-      body: JSON.stringify({
+      body: JSON.stringify(body),
+    });
+    if (!mistralRes.ok && attempt === 0 && (mistralRes.status === 429 || mistralRes.status >= 500)) {
+      await new Promise(r => setTimeout(r, 600));
+      return callMistral(body, attempt + 1);
+    }
+    return mistralRes;
+  }
+
+  try {
+    const mistralRes = await callMistral({
         model: 'mistral-small-latest',
         temperature: 0.25,
         response_format: { type: 'json_object' },
@@ -150,7 +175,7 @@ RECOMMENDATION RULES
 - Prioritize emotional fit over popularity — a lesser-known title that 
   matches their mood beats a blockbuster that doesn't.
 - Never include a title from the HARD EXCLUDE list.
-${excludeClause}${likedClause}${shownClause}
+${excludeClause}${likedClause}${shownClause}${earlierClause}
 
 BOUNDARIES
 - You are not a substitute for real therapy or mental health support. If a 
@@ -173,8 +198,7 @@ include the year whenever confident, since common-word titles ("Up", "It",
           },
           ...recent,
         ],
-      }),
-    });
+      });
 
     if (!mistralRes.ok) {
       const status = mistralRes.status === 429 ? 429 : 502;

@@ -717,14 +717,28 @@
     return rec.year ? `${rec.title} (${rec.year})` : rec.title;
   }
 
+  // In-memory cache for OMDb lookups, keyed by the exact query string. Titles
+  // routinely get looked up more than once per session (re-shown across
+  // turns, reopened in the modal after the card already resolved it) — this
+  // avoids burning extra requests against OMDb's rate limit for the same
+  // lookup. Session-only by design, same lifetime as sessionShown.
+  const omdbCache = new Map();
+
   async function fetchOmdbRaw(params) {
-    try {
-      const qs = new URLSearchParams(params);
-      const res = await fetch(`/api/omdb?${qs.toString()}`);
-      return await res.json();
-    } catch {
-      return null;
-    }
+    const qs = new URLSearchParams(params).toString();
+    if (omdbCache.has(qs)) return omdbCache.get(qs);
+    const promise = (async () => {
+      try {
+        const res = await fetch(`/api/omdb?${qs}`);
+        return await res.json();
+      } catch {
+        return null;
+      }
+    })();
+    omdbCache.set(qs, promise);
+    const result = await promise;
+    if (result === null) omdbCache.delete(qs); // don't cache network failures — worth retrying later
+    return result;
   }
 
   async function fetchOmdb(params) {
@@ -759,10 +773,7 @@
   // then a scored OMDB search — so a near-miss in the model's stated year or
   // spelling still resolves to the right title instead of quietly swapping in
   // a different movie/show that happens to share (or rank near) the same name.
-  async function resolveOmdb(rec, extra) {
-    extra = extra || {};
-    const type = rec.type || '';
-
+  async function resolveOmdbWithType(rec, type, extra) {
     let data = await fetchOmdb({ t: rec.title, y: rec.year || '', type, ...extra });
     if (data) return data;
 
@@ -781,6 +792,22 @@
     if (normalizeTitle(best.Title) !== normalizeTitle(rec.title)) return null;
 
     return fetchOmdb({ i: best.imdbID, ...extra });
+  }
+
+  async function resolveOmdb(rec, extra) {
+    extra = extra || {};
+    const type = rec.type || '';
+
+    const data = await resolveOmdbWithType(rec, type, extra);
+    if (data) return data;
+
+    // The AI's movie/series guess can be wrong (a miniseries it calls a
+    // "movie", a show OMDb only lists as a "series"). Filtering by that type
+    // can hide a title that's genuinely there under the other type, so retry
+    // untyped once rather than giving up and showing a placeholder card.
+    if (type) return resolveOmdbWithType(rec, '', extra);
+
+    return null;
   }
 
   function escapeHtml(str) {
